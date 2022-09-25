@@ -1,0 +1,1 @@
+This simple alarm clock allows user to set an alarm, upon which a random video from youtube will be played. A list of possible youtube videos has to be edited as desired manually. If there is no text document of video links - one would be created automatically upon first start of the program.
