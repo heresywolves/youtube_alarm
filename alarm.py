@@ -5,6 +5,7 @@ import time
 import random
 import webbrowser
 from tkinter import *
+import threading
 
 # If video URL file does not exist, create one
 if not os.path.isfile('youtube_alarm_videos.txt'):
@@ -43,46 +44,65 @@ def set_alarm():
     # Get user input and check if it's correct
     while True:
 
-        alarm_time = [int(n) for n in alarm_time.split(":")]
-        if check_alarm_input(alarm_time):
-            break
-        else:
+        try:
+            alarm_time = [int(n) for n in alarm_time.split(":")]
+            if check_alarm_input(alarm_time):
+
+                # Convert the alarm time from [H:M] or [H:M:S] to seconds
+                # Number of seconds in an Hour, Minute, and Second
+                seconds_hms = [3600, 60, 1]
+                alarm_seconds = sum(
+                    [a*b for a, b in zip(seconds_hms[:len(alarm_time)], alarm_time)])
+
+                # Get the current time of day in seconds
+                now = datetime.datetime.now()
+                current_time_seconds = sum(
+                    [a*b for a, b in zip(seconds_hms, [now.hour, now.minute, now.second])])
+
+                # Calculate the number of seconds until alarm goes off
+                time_diff_seconds = alarm_seconds - current_time_seconds
+
+                # If time difference is negative, set alarm for next day
+                if time_diff_seconds < 0:
+                    time_diff_seconds += 86400  # Number of seconds in a day
+
+                # Display the amount of time until alarm goes off
+                set_time = str('Alarm set to go off in %s' %
+                               datetime.timedelta(seconds=time_diff_seconds))
+                output_text.set(set_time)
+
+                # Initiating the alarm in a separate deamon thread
+                x = threading.Thread(target=running_alarm,
+                                     args=(time_diff_seconds,), daemon=True)
+                x.start()
+
+                break
+
+            else:
+                output_text.set(
+                    'ERROR: Please enter time in the correct format')
+                break
+        except:
             output_text.set('ERROR: Please enter time in the correct format')
+            break
 
-    # Convert the alarm time from [H:M] or [H:M:S] to seconds
-    # Number of seconds in an Hour, Minute, and Second
-    seconds_hms = [3600, 60, 1]
-    alarm_seconds = sum(
-        [a*b for a, b in zip(seconds_hms[:len(alarm_time)], alarm_time)])
 
-    # Get the current time of day in seconds
-    now = datetime.datetime.now()
-    current_time_seconds = sum(
-        [a*b for a, b in zip(seconds_hms, [now.hour, now.minute, now.second])])
-
-    # Calculate the number of seconds until alarm goes off
-    time_diff_seconds = alarm_seconds - current_time_seconds
-
-    # If time difference is negative, set alarm for next day
-    if time_diff_seconds < 0:
-        time_diff_seconds += 86400  # Number of seconds in a day
-
-    # Display the amount of time until alarm goes off
-    print('Alarm set to go off in %s' %
-          datetime.timedelta(seconds=time_diff_seconds))
+def running_alarm(time_diff_seconds):
+    global output_text
 
     # Sleep until the alarm goes off
+    print(f'Seconds until the alarm goes off {time_diff_seconds}')
     time.sleep(time_diff_seconds)
 
     # Alarm goes off
-    print('Wake up!')
+    output_text.set('Wake up!')
 
     # Load list of possible video URLs
     with open('youtube_alarm_videos.txt', 'r') as alarm_file:
         videos = alarm_file.readlines()
 
     # Open a random video from the list
-    webbrowser.open(random.choice(videos))
+    return webbrowser.open(random.choice(videos))
 
 
 if __name__ == "__main__":
@@ -101,8 +121,8 @@ if __name__ == "__main__":
     # Text with instructions
     instructions = Label(
         gui, text='Set a time for the alarm (Ex. 06:30 or 18:30:00)',
-        font=('calibre', 12, 'bold'), background='black', fg='white')
-    instructions.grid(row=1, column=1)
+        font=('calibre', 12, 'bold'), background='black', fg='white', justify=CENTER)
+    instructions.grid(row=1, column=1, ipady=20, ipadx=20)
 
     # Entry field
     entry = Entry(gui, bg='#191818', fg='white',
@@ -118,7 +138,7 @@ if __name__ == "__main__":
     output_text = StringVar()
     output_label = Label(gui, textvariable=output_text,
                          font=('calibre', 10, 'bold'), background='black', fg='white')
-    output_label.grid(row=4, column=1)
+    output_label.grid(row=4, column=1, pady=50)
 
     # Execute tkinter
     gui.mainloop()
